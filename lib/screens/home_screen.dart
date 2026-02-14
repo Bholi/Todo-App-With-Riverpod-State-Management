@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:todo_project/constants/colors.dart';
 import 'package:todo_project/model/todo_model.dart';
+import 'package:todo_project/provider/auth_provider.dart';
 import 'package:todo_project/provider/todo_provider.dart';
+import 'package:todo_project/screens/profile_drawer.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -59,6 +61,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade200,
+      endDrawer: const ProfileDrawer(),
       appBar: PreferredSize(
         preferredSize: const Size(double.infinity, 80),
         child: Container(
@@ -101,8 +104,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         // Only this Consumer rebuilds when remaining count changes
                         Consumer(
                           builder: (context, ref, _) {
-                            final remaining =
-                                ref.watch(remainingCountProvider);
+                            final remaining = ref.watch(remainingCountProvider);
                             return Text(
                               '$remaining Remaining',
                               style: const TextStyle(
@@ -113,6 +115,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           },
                         ),
                       ],
+                    ),
+                    const Spacer(),
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final user = ref.watch(authProvider).value;
+                        return InkWell(
+                          onTap: () => Scaffold.of(context).openEndDrawer(),
+                          splashColor: AppColors.primaryColor,
+                          borderRadius: BorderRadius.circular(30),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 10),
+                            height: 50,
+                            width: 50,
+                            decoration: BoxDecoration(
+                              color: AppColors.backgroundColor,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: user?.photoURL != null
+                                ? ClipOval(
+                                    child: Image.network(
+                                      user!.photoURL!,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                : const Icon(Icons.person),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -152,8 +182,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide:
-                        const BorderSide(color: Colors.grey, width: 0.5),
+                    borderSide: const BorderSide(
+                      color: Colors.grey,
+                      width: 0.5,
+                    ),
                   ),
                 ),
               ),
@@ -284,10 +316,12 @@ class _TodoListView extends ConsumerWidget {
       itemBuilder: (context, index) {
         final todo = todos[index];
         return Dismissible(
-          key: ValueKey(todo.id),
+          key: ValueKey(todo.firestoreId ?? todo.id),
           direction: DismissDirection.endToStart,
           onDismissed: (_) {
-            ref.read(todoProvider.notifier).deleteTodo(todo.id);
+            ref
+                .read(todoProvider.notifier)
+                .deleteTodo(todo.id, firestoreId: todo.firestoreId);
             CherryToast.error(
               animationDuration: const Duration(seconds: 2),
               toastDuration: const Duration(seconds: 2),
@@ -320,7 +354,9 @@ class _TodoListView extends ConsumerWidget {
                   shape: const CircleBorder(),
                   value: todo.isCompleted,
                   onChanged: (_) {
-                    ref.read(todoProvider.notifier).toggleTodo(todo.id);
+                    ref
+                        .read(todoProvider.notifier)
+                        .toggleTodo(todo.id, firestoreId: todo.firestoreId);
                   },
                 ),
                 Expanded(
